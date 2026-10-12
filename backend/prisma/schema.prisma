@@ -1,0 +1,389 @@
+// Prisma schema for Gebeya Boot / Telegram Shop AI Assistant
+// Multi-Tenant E-commerce & Conversational AI Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  STAFF
+}
+
+enum ShopStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryType {
+  DELIVERY
+  PICKUP
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  DIRECT_SHOP
+  PICKUP
+}
+
+enum PaymentStatus {
+  PENDING
+  CUSTOMER_MARKED_PAID
+  CONFIRMED_PAID
+  NOT_RECEIVED
+}
+
+enum ConversationStatus {
+  BOT
+  WAITING_OWNER
+  CLOSED
+}
+
+enum MessageSender {
+  CUSTOMER
+  AI
+  OWNER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  PENDING_PAYMENT
+}
+
+enum PaymentReviewStatus {
+  SUBMITTED
+  CHECKING
+  APPROVED
+  REJECTED
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+model User {
+  id               String    @id @default(uuid())
+  phone            String    @unique
+  email            String?   @unique
+  name             String?
+  role             Role      @default(OWNER)
+  passwordHash     String?
+  isVerified       Boolean   @default(false)
+  verificationCode String?
+  codeExpiresAt    DateTime?
+  twoFactorSecret  String?
+  isTwoFactorEnabled Boolean @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ownedShop        Shop?     @relation("ShopOwner")
+  staffShopId      String?
+  staffShop        Shop?     @relation("ShopStaff", fields: [staffShopId], references: [id])
+  reviewedPayments SubscriptionPayment[] @relation("PaymentReviewer")
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+model Shop {
+  id             String     @id @default(uuid())
+  ownerId        String     @unique
+  owner          User       @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  name           String
+  area           String?
+  openingHours   String?
+  deliveryAreas  String?    // Comma-separated or description
+  language       String     @default("am") // "am" or "en"
+  status         ShopStatus @default(PENDING)
+  rejectionReason String?
+  botLink        String?    // e.g., t.me/GebeyaShopBot?start=shop_xxx
+  isAiEnabled    Boolean    @default(true)
+  useEthiopianCalendar Boolean @default(false)
+
+  // Direct Payment account details shown to buyers
+  bankName       String?
+  bankAccount    String?
+  bankAccountHolder String?
+  mobileMoneyNumber String?
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  staffUsers     User[]     @relation("ShopStaff")
+  categories     Category[]
+  products       Product[]
+  orders         Order[]
+  conversations  Conversation[]
+  shopRules      ShopRule[]
+  subscriptions  Subscription[]
+  subscriptionPayments SubscriptionPayment[]
+  complaints     Complaint[]
+  auditLogs      AuditLog[]
+
+  @@map("shops")
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name      String
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  products  Product[]
+
+  @@unique([shopId, name])
+  @@map("categories")
+}
+
+model Product {
+  id           String      @id @default(uuid())
+  shopId       String
+  shop         Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name         String
+  description  String?
+  price        Decimal     @db.Decimal(10, 2)
+  options      String?     // e.g., "S, M, L" or JSON string
+  stock        Int         @default(0)
+  photoUrl     String?
+  isActive     Boolean     @default(true)
+  isOutOfStock Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  orderItems   OrderItem[]
+
+  @@index([shopId])
+  @@map("products")
+}
+
+model Customer {
+  id           String         @id @default(uuid())
+  telegramId   String         @unique // Telegram User ID as String
+  name         String?
+  phone        String?
+  lastArea     String?
+  language     String         @default("am") // "am" or "en"
+  isAnonymized Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  orders       Order[]
+  conversations Conversation[]
+  complaints   Complaint[]
+
+  @@map("customers")
+}
+
+model Order {
+  id                 String              @id @default(uuid())
+  orderNumber        String              @unique // Human-readable e.g. "GB-1001"
+  shopId             String
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  total              Decimal             @db.Decimal(10, 2)
+  status             OrderStatus         @default(NEW)
+  deliveryType       DeliveryType        @default(DELIVERY)
+  deliveryArea       String?
+  paymentMethod      PaymentMethod       @default(CASH_ON_DELIVERY)
+  paymentStatus      PaymentStatus       @default(PENDING)
+  cancellationReason String?
+  rejectionReason    String?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  items              OrderItem[]
+  statusHistory      OrderStatusHistory[]
+
+  @@index([shopId])
+  @@index([customerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName String
+  option      String?  // Selected size or option
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  totalPrice  Decimal  @db.Decimal(10, 2)
+
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id         String      @id @default(uuid())
+  orderId    String
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus
+  toStatus   OrderStatus
+  changedBy  String      // "OWNER", "CUSTOMER", "ADMIN", "SYSTEM"
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@map("order_status_history")
+}
+
+model Conversation {
+  id            String             @id @default(uuid())
+  shopId        String
+  shop          Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status        ConversationStatus @default(BOT)
+  isAiEnabled   Boolean            @default(true)
+  lastMessageAt DateTime           @default(now())
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  messages      Message[]
+
+  @@unique([shopId, customerId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         MessageSender
+  text           String
+  metadata       String?       // JSON string for AI confidence, tokens, fallback reasons
+  createdAt      DateTime      @default(now())
+
+  @@map("messages")
+}
+
+model ShopRule {
+  id              String   @id @default(uuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  questionPattern String   // Pattern or question to match
+  approvedAnswer  String   // Explicit merchant approved answer
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([shopId])
+  @@map("shop_rules")
+}
+
+model SubscriptionPlan {
+  id                String         @id @default(uuid())
+  name              String         @unique // "FREE", "BASIC", "PRO"
+  displayName       String
+  priceMonthly      Decimal        @db.Decimal(10, 2)
+  productLimit      Int
+  orderMonthlyLimit Int
+  aiMonthlyLimit    Int
+  isActive          Boolean        @default(true)
+  features          String?        // JSON string listing features
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  subscriptions     Subscription[]
+  payments          SubscriptionPayment[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id        String             @id @default(uuid())
+  shopId    String
+  shop      Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  planId    String
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+model SubscriptionPayment {
+  id              String              @id @default(uuid())
+  shopId          String
+  shop            Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            SubscriptionPlan    @relation(fields: [planId], references: [id])
+  amount          Decimal             @db.Decimal(10, 2)
+  paymentMethod   String              // "BANK_TRANSFER" or "MOBILE_MONEY"
+  referenceNumber String
+  receiptUrl      String?
+  status          PaymentReviewStatus @default(SUBMITTED)
+  rejectionReason String?
+  reviewedById    String?
+  reviewer        User?               @relation("PaymentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@map("subscription_payments")
+}
+
+model Complaint {
+  id           String          @id @default(uuid())
+  shopId       String
+  shop         Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customerId   String?
+  customer     Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String?
+  description  String
+  status       ComplaintStatus @default(OPEN)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@map("complaints")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shopId    String?
+  shop      Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  details   String?  // JSON string
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model ProcessedTelegramUpdate {
+  updateId    String   @id
+  processedAt DateTime @default(now())
+
+  @@map("processed_telegram_updates")
+}
