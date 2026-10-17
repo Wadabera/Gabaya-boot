@@ -48,6 +48,12 @@ export default function AdminOverviewPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 radar-pulse" />
+            <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-full font-bold">
+              PostgreSQL (Neon Cloud Connected)
+            </span>
+          </div>
           <h2 className="text-xl font-bold text-white">Platform Health & Counters (AD0)</h2>
           <p className="text-xs text-slate-400">
             Real-time oversight across all merchant shops, orders, and payment approvals
@@ -56,7 +62,7 @@ export default function AdminOverviewPage() {
 
         <button
           onClick={loadCounters}
-          className="p-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700 transition"
+          className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:bg-slate-800 hover:text-white transition shadow-sm"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
@@ -65,7 +71,7 @@ export default function AdminOverviewPage() {
       {/* Counters Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Shops */}
-        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm">
+        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm hover-lift transition-all duration-300">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Total Shops</span>
             <Store className="w-4 h-4 text-brand-400" />
@@ -77,7 +83,7 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Pending Approval */}
-        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm">
+        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm hover-lift transition-all duration-300">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Pending Approvals</span>
             <Clock className="w-4 h-4 text-amber-400" />
@@ -100,7 +106,7 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Pending Subscription Payments */}
-        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm">
+        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm hover-lift transition-all duration-300">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Payment Submissions</span>
             <CreditCard className="w-4 h-4 text-blue-400" />
@@ -116,7 +122,7 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Open Complaints */}
-        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm">
+        <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 shadow-sm hover-lift transition-all duration-300">
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-medium">Open Complaints</span>
             <AlertOctagon className="w-4 h-4 text-red-400" />

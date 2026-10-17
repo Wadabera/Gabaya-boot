@@ -109,7 +109,8 @@ export default function OnboardingPage() {
       });
       const newShop = res.data;
       setCreatedShopId(newShop.id);
-      setBotLink(newShop.botLink || `https://t.me/GebeyaShopBot?start=shop_${newShop.id}`);
+      const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'gebayawa_bot';
+      setBotLink(newShop.botLink || `https://t.me/${botUsername}?start=shop_${newShop.id}`);
       await refreshShop();
       setStep(4);
     } catch (err: any) {

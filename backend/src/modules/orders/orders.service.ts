@@ -8,12 +8,16 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { NotificationService } from '../../common/services/notification.service';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   /**
    * Create customer order with strict DB price calculation and validation (FR-22, FR-30)
@@ -177,6 +181,26 @@ export class OrdersService {
 
     this.logger.log(`[ORDER] New order ${orderNumber} created for shop ${shop.name} total ${orderTotal} ETB`);
 
+    // Notify shop owner at once on Telegram if linked (FR-30 / Screen P06)
+    try {
+      const owner = await this.prisma.user.findUnique({
+        where: { id: shop.ownerId },
+        select: { telegramId: true },
+      });
+      if (owner?.telegramId) {
+        await this.notificationService.notifyOwnerNewOrder(
+          owner.telegramId,
+          order.orderNumber,
+          customer.name || 'Telegram Buyer',
+          orderTotal.toString(),
+          order.deliveryArea,
+          order.id,
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to dispatch owner notification: ${err.message}`);
+    }
+
     return order;
   }
 
@@ -285,7 +309,7 @@ export class OrdersService {
     }
 
     // Execute atomic transaction for status update + stock reduction/restoration
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. If confirming order: Reduce stock atomically (FR-33 / Acceptance Test 5)
       if (currentStatus === OrderStatus.NEW && newStatus === OrderStatus.CONFIRMED) {
         for (const item of order.items) {
@@ -354,6 +378,23 @@ export class OrdersService {
       this.logger.log(`[ORDER] Order ${order.orderNumber} status changed: ${currentStatus} -> ${newStatus}`);
       return updatedOrder;
     });
+
+    // Notify customer on Telegram of status change (FR-32)
+    try {
+      if (result?.customer?.telegramId) {
+        await this.notificationService.notifyCustomerOrderStatus(
+          result.customer.telegramId,
+          result.orderNumber,
+          newStatus,
+          result.customer.language || 'am',
+          reason,
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to dispatch customer status notification: ${err.message}`);
+    }
+
+    return result;
   }
 
   /**
@@ -398,7 +439,7 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: order.id },
       data: {
         paymentStatus,
@@ -409,6 +450,22 @@ export class OrdersService {
         items: true,
       },
     });
+
+    // Notify customer on Telegram of payment status (FR-65)
+    try {
+      if (updated.customer?.telegramId) {
+        await this.notificationService.notifyCustomerPaymentStatus(
+          updated.customer.telegramId,
+          updated.orderNumber,
+          paymentStatus,
+          updated.customer.language || 'am',
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to dispatch customer payment notification: ${err.message}`);
+    }
+
+    return updated;
   }
 
   /**

@@ -61,14 +61,27 @@ export class TelegramController {
           },
         };
       } else {
+        const photo = body.photoUrl
+          ? [
+              {
+                file_id: body.photoUrl,
+                file_unique_id: `sim_file_${Date.now()}`,
+                width: 800,
+                height: 800,
+              },
+            ]
+          : undefined;
+
         update = {
           update_id: Math.floor(Math.random() * 10000000),
           message: {
             message_id: 1,
             chat: { id: chatId, type: 'private' },
-            from: { id: fromId, is_bot: false, first_name: 'Simulated User' },
+            from: { id: fromId, is_bot: false, first_name: body.userName || 'Simulated User' },
             date: Math.floor(Date.now() / 1000),
-            text: body.messageText || '/start',
+            text: photo ? undefined : (body.messageText || '/start'),
+            caption: photo ? (body.messageText || body.caption || '') : undefined,
+            photo,
           },
         };
       }

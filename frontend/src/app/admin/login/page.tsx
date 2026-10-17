@@ -66,7 +66,7 @@ export default function AdminLoginPage() {
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-slate-800/90 py-8 px-6 shadow-2xl sm:rounded-2xl border border-slate-700/80 sm:px-10">
+        <div className="bg-slate-800/90 py-8 px-6 shadow-2xl sm:rounded-3xl border border-slate-700/80 hover:border-brand-500/40 transition-colors duration-300 sm:px-10 shadow-glow/20">
           {errorMsg && (
             <div className="mb-6 p-4 rounded-xl bg-red-900/50 border border-red-700 text-red-200 text-xs flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
@@ -87,7 +87,7 @@ export default function AdminLoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none transition"
                   />
                 </div>
               </div>
@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none transition"
                   />
                 </div>
               </div>
@@ -112,9 +112,9 @@ export default function AdminLoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition disabled:opacity-50"
+                  className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-glow glow-btn-primary transition disabled:opacity-50 active:scale-95"
                 >
-                  <span>{isSubmitting ? 'Authenticating...' : 'Sign In as Administrator'}</span>
+                  <span>{isSubmitting ? 'Authenticating with Neon...' : 'Sign In as Administrator'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>

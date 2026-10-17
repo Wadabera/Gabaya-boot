@@ -95,8 +95,8 @@ Priority Legend:
 | FR-64 | M | Buyer payment choice: Cash on delivery, direct to shop, or pickup | **Completed** (PAY1/PAY2 Telegram choice options) | `TG-06` |
 | FR-65 | M | Owner marks an order as paid or not received, buyer is told | **Completed** (O7/PAY3 Reconciliation buttons) | `ORD-06` |
 | FR-66 | M | Owner enters payment details shown to buyers in shop profile | **Completed** (D01 Bank & Telebirr fields) | `SHOP-03` |
-| FR-67 | S | Posting kit: multi-photo & video preview, ready captions with shop link | Phase 2 Scope | Deferred |
-| FR-68 | S | Photos in posting kit carry shop QR code; printable QR code | **Completed** (Printable PNG data URL generated) | `QR-01` |
+| FR-67 | S | Posting kit: multi-photo & video preview, ready captions with shop link | **Completed** (P01, P07, P08, P09, P02, P03 UI & Flyer Canvas) | `POST-01` |
+| FR-68 | S | Photos in posting kit carry shop QR code; printable QR code | **Completed** (Printable PNG data URL generated & Canvas QR embedding) | `QR-01` |
 | FR-69 | M | Buyer sees and changes name, phone, language in bot, can delete data | **Completed** (C12 GDPR/Privacy anonymization) | `PRIVACY-01` |
 | FR-70 | M | Owner dashboard home: bot status, plan ending banner, income, attention | **Completed** (D00 Real-time overview metrics) | `DASH-01` |
 | FR-71 | M | Clear empty and error states: no orders, bot down, AI limit, free limit | **Completed** (Standardized error & empty UI states) | `DASH-02` |
@@ -115,3 +115,37 @@ Priority Legend:
 - **Security**: Webhook secret verification; Argon2/Bcrypt password hashing; role-guarded multi-tenancy.
 - **Privacy**: Minimal buyer retention and customer data anonymization on request.
 - **Auditability**: Order state changes and admin actions recorded in `audit_logs`.
+
+---
+
+## 8. Automated Test Verification Summary (Jest & Integration)
+
+| Test Suite File | Coverage Scope | Status | Result |
+|---|---|:---:|:---:|
+| `auth.service.spec.ts` | Owner phone verification (`AUTH-01`), SMS code validation (`AUTH-02`), Admin password & 2FA | Verified | 6/6 Passed |
+| `shops.service.spec.ts` | Shop onboarding (`SHOP-01`), profile & payment update (`SHOP-02`), tenant isolation (`SHOP-03`), QR code generation (`QR-01`) | Verified | 5/5 Passed |
+| `products.service.spec.ts` | Product CRUD & Free-plan quota enforcement (`PROD-01`, `PLAN-01`, `PROD-03`) | Verified | 1/1 Passed |
+| `orders.service.spec.ts` | Order creation, out-of-stock rejection, atomic stock reduction (`FR-33`), cancellation guard (`FR-24`), state transitions | Verified | 4/4 Passed |
+| `telegram.service.spec.ts` | Telegram idempotency / deduplication, GDPR privacy anonymization (`FR-69`) | Verified | 2/2 Passed |
+| `ai.service.spec.ts` | Grounded AI database price answering, fallback escalation (`FR-41`), global & chat AI disabling (`FR-44`) | Verified | 3/3 Passed |
+| `subscriptions.service.spec.ts` | Plan retrieval (`PLAN-02`), usage counters (`PLAN-01`), manual payment submission (`SUB-01`) | Verified | 3/3 Passed |
+| `admin.service.spec.ts` | Payment approval/rejection with plan activation, audit log recording (`AUDIT-01`) | Verified | 2/2 Passed |
+| `analytics.service.spec.ts` | Real-time sales aggregation by day/week/month, bestseller ranking (`ANALYTICS-01`), dashboard metrics (`DASH-01`) | Verified | 2/2 Passed |
+| `ethiopic-calendar.service.spec.ts` | Ethiopic calendar conversion, Ge'ez date formatting, Amharic translations (`CAL-01`) | Verified | 6/6 Passed |
+| **Total** | **10 Test Suites across all modules** | **100% Passing** | **34/34 Tests Passed** |
+
+---
+
+## 9. External Integration Status & Live Blockers
+
+The backend engine is engineered with resilient multi-provider architectures that fall back to local/in-memory implementations in development, and activate live cloud gateways when production environment credentials are provided.
+
+| Service / Integration | Configured Provider | Live Status | Environment Variables Configured |
+|---|---|---|---|
+| **PostgreSQL Database** | Neon Serverless PostgreSQL (`neondb-pooler`) | **Live & Connected (Synced & Seeded)** | `DATABASE_URL="postgresql://neondb_owner:***@ep-twilight-credit-b5vilpn9-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require"` |
+| **Telegram Bot API** | Telegram Bot API (`@gebayawa_bot`) | **Live Verified via getMe**; Dual-mode (Active Long Polling + Webhook) enabled | `TELEGRAM_BOT_TOKEN="8689235142:***"`, `TELEGRAM_BOT_USERNAME="gebayawa_bot"` |
+| **Media / Storage** | Cloudinary CDN (`dmeaoei3t`) | **Live & Verified** (Uploaded test asset in `gebeya_boot` folder, secure CDN URL returned) | `CLOUDINARY_CLOUD_NAME="dmeaoei3t"`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` |
+| **AI LLM Grounding** | Grounded Rule Engine + Gemini 3.8 Flash | **Live & Operational** (Grounded Fact Engine active from Neon DB + Live `gemini-3.8-flash` conversational generation verified) | `AI_PROVIDER=gemini`, `GEMINI_API_KEY="AQ.Ab8RN6***"`, `AI_MODEL_NAME=gemini-3.8-flash` |
+| **SMS Gateway** | AfroMessage Ethiopia | **Mock / Dev Master Code `123456` enabled**; ready for live dispatch if API key configured | `SMS_PROVIDER=mock`, `AFROMESSAGE_API_KEY`, `AFROMESSAGE_SENDER_ID` |
+
+

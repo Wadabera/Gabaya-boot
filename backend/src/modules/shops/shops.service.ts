@@ -27,7 +27,7 @@ export class ShopsService {
     }
 
     // Default bot link
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'GebeyaShopBot';
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'gebayawa_bot';
 
     const shop = await this.prisma.shop.create({
       data: {
@@ -166,7 +166,7 @@ export class ShopsService {
       throw new NotFoundException('Shop not found');
     }
 
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'GebeyaShopBot';
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'gebayawa_bot';
     const link = shop.botLink || `https://t.me/${botUsername}?start=shop_${shop.id}`;
     return QRCode.toDataURL(link, { width: 400, margin: 2 });
   }
@@ -202,5 +202,24 @@ export class ShopsService {
     }
 
     return shop;
+  }
+
+  /**
+   * List public active shops for simulator and directories
+   */
+  async getPublicActiveShops() {
+    return this.prisma.shop.findMany({
+      where: { status: ShopStatus.ACTIVE },
+      select: {
+        id: true,
+        name: true,
+        area: true,
+        openingHours: true,
+        deliveryAreas: true,
+        botLink: true,
+        language: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

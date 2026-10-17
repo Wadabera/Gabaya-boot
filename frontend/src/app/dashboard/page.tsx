@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import api from '@/lib/api';
 import { formatDualDate } from '@/lib/ethiopic-calendar';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import {
   ShoppingBag,
   DollarSign,
@@ -51,7 +52,7 @@ export default function DashboardHomePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
+        <LoadingSpinner size="lg" text="Loading dashboard..." />
       </div>
     );
   }

@@ -45,6 +45,25 @@ export class UpdateProductDto {
   @IsString()
   photoUrl?: string;
 
+  @ApiPropertyOptional({ example: 'https://example.com/video.mp4' })
+  @IsOptional()
+  @IsString()
+  videoUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of media items (images and videos)',
+  })
+  @IsOptional()
+  media?: Array<{
+    id?: string;
+    type?: 'IMAGE' | 'VIDEO';
+    url: string;
+    thumbnailUrl?: string;
+    isPrimary?: boolean;
+    sortOrder?: number;
+    title?: string;
+  }>;
+
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()

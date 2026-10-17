@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+1import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CorrectAnswerDto {
@@ -6,7 +6,6 @@ export class CorrectAnswerDto {
   @IsNotEmpty()
   @IsString()
   ownerReply: string;
-
   @ApiPropertyOptional({ example: true, description: 'Save this correction as a shop rule (FR-43)' })
   @IsOptional()
   @IsBoolean()

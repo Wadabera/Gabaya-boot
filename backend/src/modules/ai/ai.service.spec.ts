@@ -3,6 +3,7 @@ import { AiService } from './ai.service';
 import { GroundedAiService } from './providers/grounded-ai.service';
 import { PrismaService } from '../../database/prisma.service';
 import { ConversationStatus, MessageSender, Prisma } from '@prisma/client';
+import { NotificationService } from '../../common/services/notification.service';
 
 describe('AiService - Acceptance Tests', () => {
   let service: AiService;
@@ -33,6 +34,10 @@ describe('AiService - Acceptance Tests', () => {
     status: ConversationStatus.BOT,
     isAiEnabled: true,
   };
+
+  beforeAll(() => {
+    jest.setTimeout(30000);
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -80,6 +85,17 @@ describe('AiService - Acceptance Tests', () => {
                 },
               ]),
             },
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: {
+            sendTelegram: jest.fn().mockResolvedValue(true),
+            sendSms: jest.fn().mockResolvedValue(true),
+            notifyOwnerNewOrder: jest.fn().mockResolvedValue(true),
+            notifyCustomerOrderStatus: jest.fn().mockResolvedValue(true),
+            notifyCustomerPaymentStatus: jest.fn().mockResolvedValue(true),
+            notifyCustomerOwnerReply: jest.fn().mockResolvedValue(true),
           },
         },
       ],

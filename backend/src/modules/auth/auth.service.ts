@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationService } from '../../common/services/notification.service';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +19,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -72,6 +74,12 @@ export class AuthService {
     }
 
     this.logger.log(`[SMS-SERVICE] Verification code for ${normalizedPhone}: ${code}`);
+
+    // Dispatch SMS via AfroMessage if configured
+    await this.notificationService.sendSms(
+      normalizedPhone,
+      `Your Gebeya Boot verification code is: ${code}`,
+    );
 
     return {
       success: true,

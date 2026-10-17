@@ -44,6 +44,12 @@ export class ShopsController {
     return { qrCodeDataUrl: dataUrl };
   }
 
+  @Get('public/list')
+  @ApiOperation({ summary: 'List active approved shops for directory and simulator' })
+  async getPublicShops() {
+    return this.shopsService.getPublicActiveShops();
+  }
+
   @Get(':id/public')
   @ApiOperation({ summary: 'Get public shop catalog and information for buyer or bot' })
   async getPublicShop(@Param('id') id: string) {

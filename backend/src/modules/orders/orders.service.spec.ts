@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { PrismaService } from '../../database/prisma.service';
 import { BadRequestException } from '@nestjs/common';
 import { OrderStatus, DeliveryType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import { NotificationService } from '../../common/services/notification.service';
 
 describe('OrdersService - Acceptance Tests', () => {
   let service: OrdersService;
@@ -64,6 +65,17 @@ describe('OrdersService - Acceptance Tests', () => {
               create: jest.fn(),
             },
             $transaction: jest.fn((callback) => callback(prisma)),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: {
+            sendTelegram: jest.fn().mockResolvedValue(true),
+            sendSms: jest.fn().mockResolvedValue(true),
+            notifyOwnerNewOrder: jest.fn().mockResolvedValue(true),
+            notifyCustomerOrderStatus: jest.fn().mockResolvedValue(true),
+            notifyCustomerPaymentStatus: jest.fn().mockResolvedValue(true),
+            notifyCustomerOwnerReply: jest.fn().mockResolvedValue(true),
           },
         },
       ],

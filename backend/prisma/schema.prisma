@@ -48,6 +48,11 @@ enum PaymentStatus {
   NOT_RECEIVED
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
 enum ConversationStatus {
   BOT
   WAITING_OWNER
@@ -86,6 +91,7 @@ model User {
   name             String?
   role             Role      @default(OWNER)
   passwordHash     String?
+  telegramId       String?   @unique
   isVerified       Boolean   @default(false)
   verificationCode String?
   codeExpiresAt    DateTime?
@@ -156,26 +162,46 @@ model Category {
 }
 
 model Product {
-  id           String      @id @default(uuid())
+  id           String         @id @default(uuid())
   shopId       String
-  shop         Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shop         Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
   categoryId   String?
-  category     Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category     Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   name         String
   description  String?
-  price        Decimal     @db.Decimal(10, 2)
-  options      String?     // e.g., "S, M, L" or JSON string
-  stock        Int         @default(0)
-  photoUrl     String?
-  isActive     Boolean     @default(true)
-  isOutOfStock Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  price        Decimal        @db.Decimal(10, 2)
+  options      String?        // e.g., "S, M, L" or JSON string
+  stock        Int            @default(0)
+  photoUrl     String?        // Primary image URL (backwards compatible)
+  videoUrl     String?        // Optional featured video URL
+  isActive     Boolean        @default(true)
+  isOutOfStock Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
   orderItems   OrderItem[]
+  media        ProductMedia[]
 
   @@index([shopId])
   @@map("products")
+}
+
+model ProductMedia {
+  id           String    @id @default(uuid())
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type         MediaType @default(IMAGE)
+  url          String
+  thumbnailUrl String?
+  isPrimary    Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  title        String?
+  fileSize     Int?
+  mimeType     String?
+  createdAt    DateTime  @default(now())
+
+  @@index([productId])
+  @@map("product_media")
 }
 
 model Customer {

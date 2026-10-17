@@ -102,7 +102,7 @@ async function main() {
       deliveryAreas: 'Bole, CMC, Kazanchis, Megenagna, Sarbet',
       language: 'am',
       status: ShopStatus.ACTIVE,
-      botLink: 'https://t.me/GebeyaShopBot?start=shop_bole',
+      botLink: `https://t.me/${process.env.TELEGRAM_BOT_USERNAME || 'gebayawa_bot'}?start=shop_bole`,
       bankName: 'Commercial Bank of Ethiopia (CBE)',
       bankAccount: '1000123456789',
       bankAccountHolder: 'Abebe Kebede',
@@ -222,7 +222,7 @@ async function main() {
       deliveryAreas: 'Piassa, Arat Kilo, Sidist Kilo',
       language: 'en',
       status: ShopStatus.ACTIVE,
-      botLink: 'https://t.me/GebeyaShopBot?start=shop_piassa',
+      botLink: `https://t.me/${process.env.TELEGRAM_BOT_USERNAME || 'gebayawa_bot'}?start=shop_piassa`,
       isAiEnabled: true,
     },
   });

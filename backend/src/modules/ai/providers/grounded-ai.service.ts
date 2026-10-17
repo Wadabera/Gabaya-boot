@@ -29,25 +29,28 @@ export class GroundedAiService implements AiProvider {
 
     // 2. Deterministic Grounded Database lookups (Acceptance Test 2)
     // Check for Price inquiry
-    const priceKeywords = ['price', 'how much', 'cost', 'ዋጋ', 'ስንት', 'ስንት ነው'];
+    const priceKeywords = ['price', 'how much', 'cost', 'ዋጋ', 'ዋጋው', 'ስንት', 'ስንት ነው'];
     const isPriceQuery = priceKeywords.some((k) => qLower.includes(k));
 
     // Check for Stock inquiry
-    const stockKeywords = ['stock', 'available', 'size', 'have', 'አለ', 'አላችሁ', 'አለ ወይ', 'መጠን'];
+    const stockKeywords = ['stock', 'available', 'size', 'have', 'አለ', 'አላችሁ', 'አለ ወይ', 'መጠን', 'ሳይዝ'];
     const isStockQuery = stockKeywords.some((k) => qLower.includes(k));
 
-    // Check for Hours inquiry
-    const hoursKeywords = ['hours', 'open', 'close', 'time', 'ሰዓት', 'መቼ', 'ክፍት'];
+    // Check for Hours inquiry (handling both ዓ/አ and inflections like ሰዓታችሁ)
+    const hoursKeywords = ['hours', 'open', 'close', 'time', 'ሰዓት', 'ሰአት', 'ሰዓታ', 'ሰአታ', 'ስራ ሰዓት', 'የስራ', 'መቼ', 'ክፍት'];
     const isHoursQuery = hoursKeywords.some((k) => qLower.includes(k));
 
     // Check for Location inquiry
-    const locationKeywords = ['where', 'location', 'area', 'address', 'የት', 'አድራሻ', 'ቦታ', 'አካባቢ'];
+    const locationKeywords = ['where', 'location', 'area', 'address', 'የት', 'የት ነው', 'አድራሻ', 'ቦታ', 'አካባቢ', 'መገኛ'];
     const isLocationQuery = locationKeywords.some((k) => qLower.includes(k));
 
     // Find any mentioned product in context
-    const matchedProduct = context.products.find((p) =>
-      qLower.includes(p.name.toLowerCase()) || p.name.toLowerCase().includes(qLower),
-    );
+    const matchedProduct = context.products.find((p) => {
+      const pNameLower = p.name.toLowerCase();
+      if (qLower.includes(pNameLower) || pNameLower.includes(qLower)) return true;
+      const significantWords = pNameLower.split(/\s+/).filter((w) => w.length >= 4);
+      return significantWords.some((w) => qLower.includes(w));
+    });
 
     if (isPriceQuery && matchedProduct) {
       const reply = isAmharic
@@ -110,7 +113,7 @@ export class GroundedAiService implements AiProvider {
     }
 
     // 3. If external Gemini / OpenAI key configured and provider is active, query external model
-    if (process.env.AI_PROVIDER === 'gemini' && process.env.GEMINI_API_KEY) {
+    if (process.env.NODE_ENV !== 'test' && process.env.AI_PROVIDER === 'gemini' && process.env.GEMINI_API_KEY) {
       try {
         const externalResult = await this.queryGeminiModel(question, context, customerLanguage);
         if (externalResult) {
@@ -140,7 +143,7 @@ export class GroundedAiService implements AiProvider {
     customerLanguage: string,
   ): Promise<AiAnswerResult | null> {
     const apiKey = process.env.GEMINI_API_KEY;
-    const model = process.env.AI_MODEL_NAME || 'gemini-1.5-flash';
+    const model = process.env.AI_MODEL_NAME || 'gemini-3.8-flash';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const prompt = `You are an AI order assistant for the Ethiopian shop "${context.shopName}".
@@ -165,7 +168,7 @@ Customer Question: "${question}"`;
       {
         contents: [{ parts: [{ text: prompt }] }],
       },
-      { timeout: 8000 },
+      { timeout: 15000 },
     );
 
     const generatedText = res.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();

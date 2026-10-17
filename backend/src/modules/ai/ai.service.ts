@@ -8,6 +8,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { GroundedAiService } from './providers/grounded-ai.service';
 import { CorrectAnswerDto, CreateShopRuleDto } from './dto/correct-answer.dto';
 import { ConversationStatus, MessageSender } from '@prisma/client';
+import { NotificationService } from '../../common/services/notification.service';
 
 @Injectable()
 export class AiService {
@@ -16,6 +17,7 @@ export class AiService {
   constructor(
     private prisma: PrismaService,
     private groundedAi: GroundedAiService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -294,6 +296,24 @@ export class AiService {
         });
         this.logger.log(`[RULES] New shop rule saved for shop ${shopId}: "${lastCustMsg.text}" -> "${dto.ownerReply}"`);
       }
+    }
+
+    // Deliver owner answer to customer in Telegram (FR-42 / Screen O11)
+    try {
+      const shop = await this.prisma.shop.findUnique({
+        where: { id: shopId },
+        select: { name: true },
+      });
+      if (conversation.customer?.telegramId) {
+        await this.notificationService.notifyCustomerOwnerReply(
+          conversation.customer.telegramId,
+          shop?.name || 'Shop',
+          dto.ownerReply,
+          conversation.customer.language || 'am',
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to dispatch owner reply to Telegram: ${err.message}`);
     }
 
     return {

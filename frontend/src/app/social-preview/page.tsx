@@ -185,7 +185,7 @@ export default function SocialPreviewPage() {
                   href="/bot-simulator"
                   className="mt-2 inline-flex items-center gap-1.5 text-xs text-sky-400 underline font-semibold"
                 >
-                  <span>t.me/GebeyaShopBot?start=shop_bole</span>
+                  <span>t.me/{process.env.NEXT_PUBLIC_BOT_USERNAME || 'gebayawa_bot'}?start=shop_bole</span>
                   <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>

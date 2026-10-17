@@ -46,6 +46,28 @@ export class CreateProductDto {
   @IsString()
   photoUrl?: string;
 
+  @ApiPropertyOptional({ example: 'https://example.com/video.mp4' })
+  @IsOptional()
+  @IsString()
+  videoUrl?: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of media items (images and videos)',
+    example: [
+      { type: 'IMAGE', url: 'https://example.com/1.jpg', isPrimary: true, sortOrder: 0 },
+      { type: 'VIDEO', url: 'https://example.com/clip.mp4', isPrimary: false, sortOrder: 1 },
+    ],
+  })
+  @IsOptional()
+  media?: Array<{
+    type?: 'IMAGE' | 'VIDEO';
+    url: string;
+    thumbnailUrl?: string;
+    isPrimary?: boolean;
+    sortOrder?: number;
+    title?: string;
+  }>;
+
   @ApiPropertyOptional({ example: true })
   @IsOptional()
   @IsBoolean()

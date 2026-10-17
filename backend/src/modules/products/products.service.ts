@@ -48,6 +48,31 @@ export class ProductsService {
 
     const isOutOfStock = dto.isOutOfStock !== undefined ? dto.isOutOfStock : dto.stock <= 0;
 
+    // Resolve media list
+    let mediaList = dto.media || [];
+    if (mediaList.length === 0 && dto.photoUrl) {
+      mediaList.push({
+        type: 'IMAGE',
+        url: dto.photoUrl,
+        isPrimary: true,
+        sortOrder: 0,
+      });
+    }
+    if (dto.videoUrl && !mediaList.some((m) => m.type === 'VIDEO')) {
+      mediaList.push({
+        type: 'VIDEO',
+        url: dto.videoUrl,
+        isPrimary: false,
+        sortOrder: mediaList.length,
+      });
+    }
+
+    const primaryImage = mediaList.find((m) => m.isPrimary && m.type !== 'VIDEO') || mediaList.find((m) => m.type !== 'VIDEO');
+    const firstVideo = mediaList.find((m) => m.type === 'VIDEO');
+
+    const photoUrl = primaryImage?.url || dto.photoUrl || null;
+    const videoUrl = firstVideo?.url || dto.videoUrl || null;
+
     return this.prisma.product.create({
       data: {
         shopId,
@@ -57,12 +82,26 @@ export class ProductsService {
         price: new Prisma.Decimal(dto.price),
         options: dto.options || null,
         stock: dto.stock,
-        photoUrl: dto.photoUrl || null,
+        photoUrl,
+        videoUrl,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
         isOutOfStock,
+        media: mediaList.length > 0 ? {
+          create: mediaList.map((m, idx) => ({
+            type: m.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+            url: m.url,
+            thumbnailUrl: m.thumbnailUrl || null,
+            isPrimary: m.isPrimary ?? (primaryImage ? m.url === primaryImage.url : idx === 0),
+            sortOrder: m.sortOrder !== undefined ? m.sortOrder : idx,
+            title: m.title || null,
+          })),
+        } : undefined,
       },
       include: {
         category: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
   }
@@ -88,7 +127,12 @@ export class ProductsService {
 
     return this.prisma.product.findMany({
       where,
-      include: { category: true },
+      include: {
+        category: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -99,7 +143,12 @@ export class ProductsService {
   async findOne(shopId: string, id: string) {
     const product = await this.prisma.product.findFirst({
       where: { id, shopId },
-      include: { category: true },
+      include: {
+        category: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
 
     if (!product) {
@@ -129,6 +178,36 @@ export class ProductsService {
       isOutOfStock = dto.stock <= 0;
     }
 
+    // If media array provided, sync media records
+    let resolvedPhotoUrl = dto.photoUrl !== undefined ? dto.photoUrl : existing.photoUrl;
+    let resolvedVideoUrl = dto.videoUrl !== undefined ? dto.videoUrl : existing.videoUrl;
+
+    if (dto.media !== undefined) {
+      await this.prisma.productMedia.deleteMany({
+        where: { productId: existing.id },
+      });
+
+      if (dto.media.length > 0) {
+        const primaryItem = dto.media.find((m) => m.isPrimary && m.type !== 'VIDEO') || dto.media.find((m) => m.type !== 'VIDEO');
+        const videoItem = dto.media.find((m) => m.type === 'VIDEO');
+
+        if (primaryItem) resolvedPhotoUrl = primaryItem.url;
+        if (videoItem) resolvedVideoUrl = videoItem.url;
+
+        await this.prisma.productMedia.createMany({
+          data: dto.media.map((m, idx) => ({
+            productId: existing.id,
+            type: m.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+            url: m.url,
+            thumbnailUrl: m.thumbnailUrl || null,
+            isPrimary: m.isPrimary ?? (primaryItem ? m.url === primaryItem.url : idx === 0),
+            sortOrder: m.sortOrder !== undefined ? m.sortOrder : idx,
+            title: m.title || null,
+          })),
+        });
+      }
+    }
+
     return this.prisma.product.update({
       where: { id: existing.id },
       data: {
@@ -138,11 +217,17 @@ export class ProductsService {
         price: dto.price !== undefined ? new Prisma.Decimal(dto.price) : undefined,
         options: dto.options,
         stock: dto.stock,
-        photoUrl: dto.photoUrl,
+        photoUrl: resolvedPhotoUrl,
+        videoUrl: resolvedVideoUrl,
         isActive: dto.isActive,
         isOutOfStock,
       },
-      include: { category: true },
+      include: {
+        category: true,
+        media: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
     });
   }
 

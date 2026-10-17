@@ -13,6 +13,14 @@ import {
   ShoppingBag,
   ExternalLink,
   Trash2,
+  Camera,
+  Image as ImageIcon,
+  User,
+  Crown,
+  Plus,
+  Check,
+  Share2,
+  X,
 } from 'lucide-react';
 
 interface SimulatedMessage {
@@ -24,14 +32,43 @@ interface SimulatedMessage {
   timestamp: string;
 }
 
+const SAMPLE_PHOTOS = [
+  {
+    title: 'Leather Boots',
+    url: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600',
+    caption: 'የወንድ የቆዳ ጫማ 2800 ETB 40,41,42,43',
+  },
+  {
+    title: 'Leather Handbag',
+    url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600',
+    caption: 'Bole Leather Handbag 2200 ETB Brown, Black',
+  },
+  {
+    title: 'Winter Jacket',
+    url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600',
+    caption: 'Classic Warm Jacket 3500 ETB M, L, XL',
+  },
+  {
+    title: 'Bank Receipt',
+    url: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600',
+    caption: 'የCBE ክፍያ ደረሰኝ ከፍያለሁ',
+  },
+];
+
 export default function BotSimulatorPage() {
   const [messages, setMessages] = useState<SimulatedMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [shops, setShops] = useState<any[]>([]);
   const [selectedShopId, setSelectedShopId] = useState<string>('');
+  const [activeRole, setActiveRole] = useState<'buyer' | 'owner'>('buyer');
   const [telegramUserId] = useState<number>(() => Math.floor(10000000 + Math.random() * 90000000));
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Photo sending state
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [photoUrlInput, setPhotoUrlInput] = useState(SAMPLE_PHOTOS[0].url);
+  const [photoCaptionInput, setPhotoCaptionInput] = useState(SAMPLE_PHOTOS[0].caption);
 
   useEffect(() => {
     loadShops();
@@ -43,11 +80,17 @@ export default function BotSimulatorPage() {
 
   const loadShops = async () => {
     try {
-      // Fetch shops to let user select
-      const res = await api.get('/admin/shops');
-      setShops(res.data);
-      if (res.data.length > 0) {
-        const firstShop = res.data[0];
+      let shopList = [];
+      try {
+        const res = await api.get('/shops/public/list');
+        shopList = res.data;
+      } catch {
+        const adminRes = await api.get('/admin/shops');
+        shopList = adminRes.data;
+      }
+      setShops(shopList);
+      if (shopList.length > 0) {
+        const firstShop = shopList[0];
         setSelectedShopId(firstShop.id);
         startBotSession(firstShop.id);
       } else {
@@ -58,11 +101,11 @@ export default function BotSimulatorPage() {
     }
   };
 
-  const startBotSession = async (shopId: string) => {
+  const startBotSession = async (shopId: string, role = activeRole) => {
     setMessages([]);
     setLoading(true);
     try {
-      const command = shopId ? `/start shop_${shopId}` : '/start';
+      const command = role === 'owner' ? '/owner' : shopId ? `/start shop_${shopId}` : '/start';
       const res = await api.post('/telegram/simulate', {
         fromId: telegramUserId,
         chatId: telegramUserId,
@@ -92,17 +135,19 @@ export default function BotSimulatorPage() {
     }
   };
 
-  const handleSendMessage = async (e?: React.FormEvent) => {
+  const handleSendMessage = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+    const textToSend = (customText !== undefined ? customText : inputText).trim();
+    if (!textToSend) return;
 
-    const userMsgText = inputText.trim();
-    setInputText('');
+    if (customText === undefined) {
+      setInputText('');
+    }
 
     const newMsg: SimulatedMessage = {
       id: `user_${Date.now()}`,
       sender: 'user',
-      text: userMsgText,
+      text: textToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -113,7 +158,59 @@ export default function BotSimulatorPage() {
       const res = await api.post('/telegram/simulate', {
         fromId: telegramUserId,
         chatId: telegramUserId,
-        messageText: userMsgText,
+        messageText: textToSend,
+      });
+
+      if (res.data) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `bot_${Date.now()}`,
+            sender: 'bot',
+            text: res.data.text || '',
+            photoUrl: res.data.photoUrl,
+            inlineKeyboard: res.data.replyMarkup?.inline_keyboard,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bot_err_${Date.now()}`,
+          sender: 'bot',
+          text: `⚠️ Error: ${err.response?.data?.message || err.message}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendPhoto = async () => {
+    if (!photoUrlInput.trim()) return;
+    setShowPhotoModal(false);
+
+    const newMsg: SimulatedMessage = {
+      id: `user_photo_${Date.now()}`,
+      sender: 'user',
+      text: photoCaptionInput ? `[Photo Upload]: ${photoCaptionInput}` : '[Photo Upload]',
+      photoUrl: photoUrlInput,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, newMsg]);
+    setLoading(true);
+
+    try {
+      const res = await api.post('/telegram/simulate', {
+        fromId: telegramUserId,
+        chatId: telegramUserId,
+        photoUrl: photoUrlInput,
+        caption: photoCaptionInput,
+        messageText: photoCaptionInput,
       });
 
       if (res.data) {
@@ -155,7 +252,7 @@ export default function BotSimulatorPage() {
     const clickNotice: SimulatedMessage = {
       id: `user_click_${Date.now()}`,
       sender: 'user',
-      text: `[Clicked: ${btn.text}]`,
+      text: `[🔘 ${btn.text}]`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -199,8 +296,8 @@ export default function BotSimulatorPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      {/* Top Bar */}
-      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
+      {/* Top Header */}
+      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
             href="/"
@@ -213,14 +310,46 @@ export default function BotSimulatorPage() {
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h1 className="font-bold text-sm text-white">Telegram Bot Simulator</h1>
-              <span className="text-[10px] text-emerald-400">Connected to /api/telegram/simulate</span>
+              <h1 className="font-bold text-sm text-white">Telegram ShopBot Simulator</h1>
+              <span className="text-[10px] text-emerald-400">Live AI Assistant & FR-14 Product Engine</span>
             </div>
           </div>
         </div>
 
-        {/* Shop Selector */}
+        {/* Role & Shop Selectors */}
         <div className="flex items-center gap-2">
+          {/* Role Mode Switcher */}
+          <div className="flex bg-slate-900 p-0.5 rounded-xl border border-slate-700 text-xs">
+            <button
+              onClick={() => {
+                setActiveRole('buyer');
+                startBotSession(selectedShopId, 'buyer');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
+                activeRole === 'buyer'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Buyer</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveRole('owner');
+                startBotSession(selectedShopId, 'owner');
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition ${
+                activeRole === 'owner'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-300" />
+              <span>Owner (FR-14)</span>
+            </button>
+          </div>
+
           {shops.length > 0 && (
             <select
               value={selectedShopId}
@@ -241,7 +370,7 @@ export default function BotSimulatorPage() {
           <button
             onClick={() => startBotSession(selectedShopId)}
             className="p-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 hover:text-white transition"
-            title="Restart Session (/start)"
+            title="Restart Session"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -263,10 +392,29 @@ export default function BotSimulatorPage() {
                       : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm'
                   }`}
                 >
-                  {/* Image attachment */}
+                  {/* Media attachment (Image or Video) */}
                   {m.photoUrl && (
-                    <div className="mb-2.5 rounded-xl overflow-hidden border border-slate-700 max-h-56">
-                      <img src={m.photoUrl} alt="Product" className="w-full h-full object-cover" />
+                    <div className="mb-2.5 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md">
+                      {m.photoUrl.match(/\.(mp4|webm|mov|ogg)$/i) ? (
+                        <div className="relative">
+                          <video
+                            src={m.photoUrl}
+                            controls
+                            muted
+                            playsInline
+                            className="w-full max-h-60 object-contain rounded-2xl"
+                          />
+                          <span className="absolute top-2 left-2 text-[9px] font-bold bg-sky-600/90 text-white px-2 py-0.5 rounded-md backdrop-blur-md">
+                            🎬 Product Video
+                          </span>
+                        </div>
+                      ) : (
+                        <img
+                          src={m.photoUrl}
+                          alt="Attachment"
+                          className="w-full max-h-60 object-cover hover:scale-105 transition duration-300"
+                        />
+                      )}
                     </div>
                   )}
 
@@ -282,9 +430,10 @@ export default function BotSimulatorPage() {
                             <button
                               key={bIdx}
                               onClick={() => handleButtonClick(btn)}
-                              className="flex-1 min-w-[120px] py-1.5 px-3 rounded-lg bg-slate-700 hover:bg-sky-600 text-white font-medium text-[11px] transition text-center shadow-sm"
+                              className="flex-1 min-w-[120px] py-1.5 px-3 rounded-lg bg-slate-700 hover:bg-sky-600 text-white font-medium text-[11px] transition text-center shadow-sm flex items-center justify-center gap-1"
                             >
-                              {btn.text}
+                              <span>{btn.text}</span>
+                              {btn.url && <ExternalLink className="w-3 h-3 opacity-70" />}
                             </button>
                           ))}
                         </div>
@@ -310,50 +459,93 @@ export default function BotSimulatorPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
+        {/* Input Bar & Actions */}
         <div className="pt-2">
-          {/* Quick Command Pills */}
+          {/* Quick Action Pills based on active role */}
           <div className="flex gap-1.5 overflow-x-auto pb-2 text-[11px] font-semibold text-slate-300">
-            <button
-              onClick={() => { setInputText('ምርቶች'); }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
-            >
-              ምርቶች (Catalog)
-            </button>
-            <button
-              onClick={() => { setInputText('የሱቅ መረጃ'); }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
-            >
-              የሱቅ መረጃ (Info)
-            </button>
-            <button
-              onClick={() => { setInputText('ዋጋው ስንት ነው?'); }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
-            >
-              ጥያቄ (Ask AI)
-            </button>
-            <button
-              onClick={() => { setInputText('ትዕዛዞቼ'); }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
-            >
-              ትዕዛዞቼ (My Orders)
-            </button>
-            <button
-              onClick={() => { setInputText('መረጃዬን ሰርዝ'); }}
-              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-red-400 whitespace-nowrap"
-            >
-              መረጃዬን ሰርዝ (Delete Data)
-            </button>
+            {activeRole === 'owner' ? (
+              <>
+                <button
+                  onClick={() => setShowPhotoModal(true)}
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg whitespace-nowrap flex items-center gap-1 font-bold shadow-sm"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>➕ Add Product (FR-14)</span>
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, '/owner')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  👑 Owner Portal
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, '/orders')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  📦 Pending Orders
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, '/sales')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  📊 Sales Report
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleSendMessage(undefined, 'ምርቶች')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  🛍️ Catalog (ምርቶች)
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, '/cart')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  🛒 Cart (ጋሪ)
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, 'ትዕዛዞቼ')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  📦 My Orders
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, 'ዋጋው ስንት ነው?')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  ❓ Ask AI (ዋጋ)
+                </button>
+                <button
+                  onClick={() => handleSendMessage(undefined, 'የሱቅ መረጃ')}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 whitespace-nowrap"
+                >
+                  🏪 Shop Info
+                </button>
+              </>
+            )}
           </div>
 
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+          {/* Text input form with camera icon */}
+          <form onSubmit={(e) => handleSendMessage(e)} className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPhotoModal(true)}
+              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-2xl transition border border-slate-700"
+              title="Upload Photo (Product creation or Receipt)"
+            >
+              <Camera className="w-4 h-4 text-sky-400" />
+            </button>
+
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Type message or question to the bot..."
+              placeholder={activeRole === 'owner' ? "Send owner command or product text..." : "Type message, search product, or ask question..."}
               className="flex-1 px-4 py-3 rounded-2xl bg-slate-800 border border-slate-700 text-white text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-slate-500"
             />
+
             <button
               type="submit"
               disabled={loading || !inputText.trim()}
@@ -364,6 +556,95 @@ export default function BotSimulatorPage() {
           </form>
         </div>
       </div>
+
+      {/* Send Photo Modal (FR-14 Simulator) */}
+      {showPhotoModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-800 border border-slate-700 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-scale-in">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <div className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-sky-400" />
+                <h3 className="font-bold text-sm text-white">Send Photo to Bot (FR-14)</h3>
+              </div>
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="w-7 h-7 rounded-full bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Sample Presets */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 block">Choose a sample:</span>
+              <div className="grid grid-cols-2 gap-2">
+                {SAMPLE_PHOTOS.map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setPhotoUrlInput(sample.url);
+                      setPhotoCaptionInput(sample.caption);
+                    }}
+                    className={`p-2 rounded-xl border text-left flex items-center gap-2 transition text-xs ${
+                      photoUrlInput === sample.url
+                        ? 'border-sky-500 bg-sky-950/40 text-white'
+                        : 'border-slate-700 bg-slate-900/60 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    <img src={sample.url} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                    <span className="truncate font-semibold text-[11px]">{sample.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Image Preview & URL input */}
+            <div className="space-y-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">Image URL:</label>
+                <input
+                  type="text"
+                  value={photoUrlInput}
+                  onChange={(e) => setPhotoUrlInput(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                  Caption (Product Name & Price in ETB):
+                </label>
+                <input
+                  type="text"
+                  value={photoCaptionInput}
+                  onChange={(e) => setPhotoCaptionInput(e.target.value)}
+                  placeholder="e.g. Leather Bag 1800 ETB S,M,L"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-700">
+              <button
+                type="button"
+                onClick={() => setShowPhotoModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendPhoto}
+                className="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-md transition"
+              >
+                Send Photo to Bot
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

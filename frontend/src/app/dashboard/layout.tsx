@@ -90,6 +90,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
+        {/* Live Bot Status Badge */}
+        <div className="mx-3 my-2 p-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 radar-pulse" />
+            <span className="text-[11px] font-bold text-emerald-800">
+              {language === 'am' ? 'ቦቱ በመስራት ላይ ነው' : 'Bot Active on Telegram'}
+            </span>
+          </div>
+          <span className="text-[9px] font-mono text-emerald-700 bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200">
+            {shop?.status || 'ACTIVE'}
+          </span>
+        </div>
+
         {/* Navigation Links */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
@@ -99,13 +112,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition duration-200 ${
                   isActive
-                    ? 'bg-brand-50 text-brand-700 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-brand-600 text-white shadow-glow font-bold'
+                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
               </Link>
             );
@@ -115,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               href="/bot-simulator"
               target="_blank"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sky-700 bg-sky-50 hover:bg-sky-100 text-xs font-semibold transition"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sky-700 bg-sky-50 hover:bg-sky-100 text-xs font-bold transition shadow-xs hover:shadow-glow-blue glow-btn-telegram"
             >
               <Smartphone className="w-4 h-4 text-sky-600" />
               <span>{t.botSimulator}</span>
